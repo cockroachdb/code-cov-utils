@@ -68,8 +68,11 @@ const noCount lineCount = -1
 
 func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 	lcov := bufio.NewScanner(lcovReader)
-	w := bufio.NewWriter(jsonWriter)
 
+	// The output schema is odd, in that each line is a separate attribute
+	// (instead of being part of an array). This makes it hard to use Go's json
+	// machinery; we just produce the output directly.
+	w := bufio.NewWriter(jsonWriter)
 	w.WriteString("{\n")
 	w.WriteString("  \"coverage\": {")
 	firstFile := true
