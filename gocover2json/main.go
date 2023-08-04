@@ -12,10 +12,12 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"golang.org/x/tools/cover"
 	"io"
 	"os"
+	"strings"
 )
 
 // gocover2json is a program that converts from go cover profile format to the
@@ -34,23 +36,30 @@ import (
 //	  }
 //	}
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <input-profile> <output.json>\n", os.Args[0])
+	var trimPrefix string
+	flag.StringVar(&trimPrefix, "trim-prefix", "", "trim prefix from filenames")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Converts a go cover profile to a codecov json file\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <input-profile> <output.json>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+	if flag.NArg() != 2 {
+		flag.Usage()
 		os.Exit(1)
 	}
-	gocoverFile := os.Args[1]
-	jsonFile := os.Args[2]
-	profiles, err := cover.ParseProfiles(gocoverFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing %q: %v", gocoverFile, err)
-		os.Exit(2)
-	}
+
+	gocoverFile := flag.Arg(0)
+	jsonFile := flag.Arg(1)
 	out, err := os.Create(jsonFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating %q: %v", jsonFile, err)
 		os.Exit(2)
 	}
-	if err := convertProfilesToJson(profiles, out); err != nil {
+	if err := convertGocoverToJson(gocoverFile, out, trimPrefix); err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 		os.Exit(2)
 	}
@@ -65,7 +74,12 @@ type lineCount int
 
 const noCount lineCount = -1
 
-func convertProfilesToJson(profiles []*cover.Profile, jsonWriter io.Writer) error {
+func convertGocoverToJson(gocoverFile string, jsonWriter io.Writer, trimPrefix string) error {
+	profiles, err := cover.ParseProfiles(gocoverFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing %q: %v", gocoverFile, err)
+		os.Exit(2)
+	}
 	// The output schema is odd, in that each line is a separate attribute
 	// (instead of being part of an array). This makes it hard to use Go's json
 	// machinery; we just produce the output directly.
@@ -86,7 +100,8 @@ func convertProfilesToJson(profiles []*cover.Profile, jsonWriter io.Writer) erro
 			w.WriteString(",")
 		}
 		w.WriteString("\n")
-		fmt.Fprintf(w, "    %q: {", profile.FileName)
+		fileName := strings.TrimPrefix(profile.FileName, trimPrefix)
+		fmt.Fprintf(w, "    %q: {", fileName)
 		first := true
 		for i, count := range lines {
 			if count < 0 {

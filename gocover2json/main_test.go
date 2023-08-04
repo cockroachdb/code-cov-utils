@@ -13,7 +13,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"golang.org/x/tools/cover"
 	"os"
 	"testing"
 
@@ -24,6 +23,16 @@ func TestLcovToJson(t *testing.T) {
 	datadriven.RunTest(t, "testdata/gocover2json", func(t *testing.T, td *datadriven.TestData) string {
 		switch td.Cmd {
 		case "convert":
+			var trimPrefix string
+			for _, arg := range td.CmdArgs {
+				switch arg.Key {
+				case "trim-prefix":
+					trimPrefix = arg.Vals[0]
+				default:
+					td.Fatalf(t, "unknown argument %q", arg.Key)
+				}
+			}
+
 			f, err := os.CreateTemp("", "profile")
 			if err != nil {
 				td.Fatalf(t, "%v", err)
@@ -35,13 +44,9 @@ func TestLcovToJson(t *testing.T) {
 			if err := f.Close(); err != nil {
 				td.Fatalf(t, "%v", err)
 			}
-			profiles, err := cover.ParseProfiles(filename)
-			if err != nil {
-				td.Fatalf(t, "%v", err)
-			}
 
 			out := &bytes.Buffer{}
-			if err := convertProfilesToJson(profiles, out); err != nil {
+			if err := convertGocoverToJson(filename, out, trimPrefix); err != nil {
 				return fmt.Sprintf("error: %v", err)
 			}
 			result := out.String()
