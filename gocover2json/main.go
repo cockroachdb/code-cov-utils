@@ -56,15 +56,15 @@ func main() {
 	jsonFile := flag.Arg(1)
 	out, err := os.Create(jsonFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating %q: %v", jsonFile, err)
+		fmt.Fprintf(os.Stderr, "Error creating %q: %v\n", jsonFile, err)
 		os.Exit(2)
 	}
 	if err := convertGocoverToJson(gocoverFile, out, trimPrefix); err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
+		fmt.Fprintf(os.Stderr, "Error converting %q: %v\n", gocoverFile, err)
 		os.Exit(2)
 	}
 	if err := out.Close(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error closing %q: %v", jsonFile, err)
+		fmt.Fprintf(os.Stderr, "Error closing %q: %v\n", jsonFile, err)
 		os.Exit(2)
 	}
 }
@@ -77,8 +77,7 @@ const noCount lineCount = -1
 func convertGocoverToJson(gocoverFile string, jsonWriter io.Writer, trimPrefix string) error {
 	profiles, err := cover.ParseProfiles(gocoverFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing %q: %v", gocoverFile, err)
-		os.Exit(2)
+		return err
 	}
 	// The output schema is odd, in that each line is a separate attribute
 	// (instead of being part of an array). This makes it hard to use Go's json
