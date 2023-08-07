@@ -19,8 +19,10 @@ import (
 	"strings"
 )
 
-// lcov2json is a program that converts from LCOV format to the Codecov JSON
-// format (https://docs.codecov.com/docs/codecov-custom-coverage-format).
+// lcov2json is a program that converts from LCOV format [1] to the Codecov
+// custom coverage JSON format [2].
+// [1] https://ltp.sourceforge.net/coverage/lcov/geninfo.1.php
+// [2] https://docs.codecov.com/docs/codecov-custom-coverage-format
 //
 // Example of the output format:
 //
@@ -109,6 +111,7 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 		idx := strings.Index(l, ":")
 		if idx == -1 {
 			// Don't know how to parse this line; skip.
+			fmt.Fprintf(os.Stderr, "Warning: cannot parse %q\n", l)
 			continue
 		}
 		key := l[:idx]
@@ -127,6 +130,7 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 			if line > 1000000 {
 				break
 			}
+			// Extend the slice up to currentLines[line], if necessary.
 			for len(currentLines) <= line {
 				currentLines = append(currentLines, -1)
 			}

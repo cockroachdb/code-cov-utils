@@ -86,13 +86,14 @@ func convertGocoverToJson(gocoverFile string, jsonWriter io.Writer, trimPrefix s
 	w.WriteString("{\n")
 	w.WriteString("  \"coverage\": {")
 	for fileIdx, profile := range profiles {
-		var lines []lineCount
+		var lineCounts []lineCount
 		for _, b := range profile.Blocks {
-			for len(lines) <= b.EndLine {
-				lines = append(lines, -1)
+			// Extend the slice up to lineCounts[b.EndLine], if necessary.
+			for len(lineCounts) <= b.EndLine {
+				lineCounts = append(lineCounts, -1)
 			}
 			for i := b.StartLine; i <= b.EndLine; i++ {
-				lines[i] = lineCount(b.Count)
+				lineCounts[i] = lineCount(b.Count)
 			}
 		}
 		if fileIdx > 0 {
@@ -102,7 +103,7 @@ func convertGocoverToJson(gocoverFile string, jsonWriter io.Writer, trimPrefix s
 		fileName := strings.TrimPrefix(profile.FileName, trimPrefix)
 		fmt.Fprintf(w, "    %q: {", fileName)
 		first := true
-		for i, count := range lines {
+		for i, count := range lineCounts {
 			if count < 0 {
 				continue
 			}
