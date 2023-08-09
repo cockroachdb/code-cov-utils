@@ -107,6 +107,7 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 			w.WriteString("\n    }")
 
 			currentFile = ""
+			continue
 		}
 		idx := strings.Index(l, ":")
 		if idx == -1 {
