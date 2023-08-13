@@ -1,12 +1,16 @@
 // Copyright 2023 The Cockroach Authors.
 //
-// Use of this software is governed by the Business Source License
-// included in the file licenses/BSL.txt.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// As of the Change Date specified in that file, in accordance with
-// the Business Source License, use of this software will be governed
-// by the Apache License, Version 2.0, included in the file
-// licenses/APL.txt.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied. See the License for the specific language governing
+// permissions and limitations under the License.
 
 package main
 
@@ -17,6 +21,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/cockroachdb/code-cov-utils/coverlib"
 )
 
 // lcov2json is a program that converts from LCOV format [1] to the Codecov
@@ -63,11 +69,6 @@ func main() {
 	}
 }
 
-// lineCount is the hit count for a line, or -1 if the line has no count.
-type lineCount int
-
-const noCount lineCount = -1
-
 func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 	lcov := bufio.NewScanner(lcovReader)
 
@@ -79,7 +80,7 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 	w.WriteString("  \"coverage\": {")
 	firstFile := true
 	var currentFile string
-	var currentLines []lineCount
+	var currentLines coverlib.LineCounts
 	for lcov.Scan() {
 		l := lcov.Text()
 		if l == "end_of_record" {
@@ -93,17 +94,14 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 			w.WriteString("\n")
 			fmt.Fprintf(w, "    %q: {", currentFile)
 			first := true
-			for i, count := range currentLines {
-				if count < 0 {
-					continue
-				}
+			currentLines.ForEach(func(lineIdx, hitCount int) {
 				if !first {
 					w.WriteString(",")
 				}
 				first = false
 				w.WriteString("\n")
-				fmt.Fprintf(w, "      \"%d\": %d", i, count)
-			}
+				fmt.Fprintf(w, "      \"%d\": %d", lineIdx, hitCount)
+			})
 			w.WriteString("\n    }")
 
 			currentFile = ""
@@ -120,7 +118,7 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 		switch key {
 		case "SF":
 			currentFile = val
-			currentLines = currentLines[:0]
+			currentLines.Reset()
 		case "DA":
 			var line, count int
 			_, err := fmt.Sscanf(val, "%d,%d", &line, &count)
@@ -131,11 +129,7 @@ func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
 			if line > 1000000 {
 				break
 			}
-			// Extend the slice up to currentLines[line], if necessary.
-			for len(currentLines) <= line {
-				currentLines = append(currentLines, -1)
-			}
-			currentLines[line] = lineCount(count)
+			currentLines.Set(line, count)
 		}
 	}
 	w.WriteString("\n  }\n")
