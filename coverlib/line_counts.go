@@ -14,6 +14,11 @@
 
 package coverlib
 
+import (
+	"fmt"
+	"strings"
+)
+
 const noCount int = -1
 
 // LineCounts stores the hit counts for a file.
@@ -24,6 +29,10 @@ type LineCounts struct {
 // Set the hit count for a line. If the line already has a hit count, the larger
 // value is used.
 func (lc *LineCounts) Set(lineIdx, hitCount int) {
+	// Safety guard in case of corrupt data.
+	if lineIdx > 10000000 {
+		panic(fmt.Sprintf("lineIdx too large: %d", lineIdx))
+	}
 	for lineIdx >= len(lc.hitCounts) {
 		lc.hitCounts = append(lc.hitCounts, noCount)
 	}
@@ -45,4 +54,43 @@ func (lc *LineCounts) ForEach(fn func(lineIdx, hitCount int)) {
 // Reset deletes all counts.
 func (lc *LineCounts) Reset() {
 	lc.hitCounts = lc.hitCounts[:0]
+}
+
+// CopyFrom copies the given counts.
+func (lc *LineCounts) CopyFrom(other *LineCounts) {
+	lc.hitCounts = append(lc.hitCounts[:0], other.hitCounts...)
+}
+
+func (lc *LineCounts) String() string {
+	return lc.StringWithSeparator(", ")
+}
+
+func (lc *LineCounts) StringWithSeparator(sep string) string {
+	// We will RLE compress the counts and emit each "block" as a string.
+	var lastStart, lastEnd, lastCount int
+	var blocks []string
+	maybeEmit := func() {
+		if lastStart == 0 {
+			return
+		}
+		var str string
+		if lastStart == lastEnd {
+			str = fmt.Sprintf("%d:%d", lastStart, lastCount)
+		} else {
+			str = fmt.Sprintf("%d-%d:%d", lastStart, lastEnd, lastCount)
+		}
+		blocks = append(blocks, str)
+	}
+	lc.ForEach(func(line, count int) {
+		if lastStart != 0 && lastEnd == line-1 && lastCount == count {
+			lastEnd = line
+			return
+		}
+		maybeEmit()
+		lastStart = line
+		lastEnd = line
+		lastCount = count
+	})
+	maybeEmit()
+	return strings.Join(blocks, sep)
 }

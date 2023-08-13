@@ -15,14 +15,10 @@
 package main
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
+	"github.com/cockroachdb/code-cov-utils/coverlib"
 	"io"
 	"os"
-	"strings"
-
-	"github.com/cockroachdb/code-cov-utils/coverlib"
 )
 
 // lcov2json is a program that converts from LCOV format [1] to the Codecov
@@ -70,75 +66,9 @@ func main() {
 }
 
 func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
-	lcov := bufio.NewScanner(lcovReader)
-
-	// The output schema is odd, in that each line is a separate attribute
-	// (instead of being part of an array). This makes it hard to use Go's json
-	// machinery; we just produce the output directly.
-	w := bufio.NewWriter(jsonWriter)
-	w.WriteString("{\n")
-	w.WriteString("  \"coverage\": {")
-	firstFile := true
-	var currentFile string
-	var currentLines coverlib.LineCounts
-	for lcov.Scan() {
-		l := lcov.Text()
-		if l == "end_of_record" {
-			if currentFile == "" {
-				return errors.New("end_of_record with no file path")
-			}
-			if !firstFile {
-				w.WriteString(",")
-			}
-			firstFile = false
-			w.WriteString("\n")
-			fmt.Fprintf(w, "    %q: {", currentFile)
-			first := true
-			currentLines.ForEach(func(lineIdx, hitCount int) {
-				if !first {
-					w.WriteString(",")
-				}
-				first = false
-				w.WriteString("\n")
-				fmt.Fprintf(w, "      \"%d\": %d", lineIdx, hitCount)
-			})
-			w.WriteString("\n    }")
-
-			currentFile = ""
-			continue
-		}
-		idx := strings.Index(l, ":")
-		if idx == -1 {
-			// Don't know how to parse this line; skip.
-			fmt.Fprintf(os.Stderr, "Warning: cannot parse %q\n", l)
-			continue
-		}
-		key := l[:idx]
-		val := l[idx+1:]
-		switch key {
-		case "SF":
-			currentFile = val
-			currentLines.Reset()
-		case "DA":
-			var line, count int
-			_, err := fmt.Sscanf(val, "%d,%d", &line, &count)
-			if err != nil {
-				return fmt.Errorf("error parsing DA line: %v", err)
-			}
-			// Sanity check
-			if line > 1000000 {
-				break
-			}
-			currentLines.Set(line, count)
-		}
-	}
-	w.WriteString("\n  }\n")
-	w.WriteString("}\n")
-	if currentFile != "" {
-		return errors.New("unfinished record")
-	}
-	if err := lcov.Err(); err != nil {
+	p, err := coverlib.ImportLCOV(lcovReader)
+	if err != nil {
 		return err
 	}
-	return w.Flush()
+	return coverlib.ExportCodecovJson(p, jsonWriter)
 }

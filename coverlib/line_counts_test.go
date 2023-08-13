@@ -24,7 +24,7 @@ func TestLineCounts(t *testing.T) {
 	var lc LineCounts
 
 	type counts map[int]int
-	expect := func(m counts) {
+	expect := func(lc LineCounts, m counts) {
 		t.Helper()
 		var expLines []int
 		for i := range m {
@@ -42,16 +42,29 @@ func TestLineCounts(t *testing.T) {
 			t.Fatalf("invalid line set.\nexpected: %v\ngot: %v", expLines, gotLines)
 		}
 	}
-	expect(counts{})
+	expect(lc, counts{})
 	lc.Set(100, 10)
-	expect(counts{100: 10})
+	expect(lc, counts{100: 10})
 	lc.Set(1, 0)
-	expect(counts{1: 0, 100: 10})
+	expect(lc, counts{1: 0, 100: 10})
 	lc.Set(1, 2)
-	expect(counts{1: 2, 100: 10})
+	expect(lc, counts{1: 2, 100: 10})
 	lc.Set(1, 1)
-	expect(counts{1: 2, 100: 10})
+	expect(lc, counts{1: 2, 100: 10})
 	lc.Set(50, 1)
 	lc.Set(500, 5)
-	expect(counts{1: 2, 50: 1, 100: 10, 500: 5})
+	expect(lc, counts{1: 2, 50: 1, 100: 10, 500: 5})
+
+	var other LineCounts
+	other.CopyFrom(&lc)
+	expect(other, counts{1: 2, 50: 1, 100: 10, 500: 5})
+
+	lc.Set(1, 200)
+	expect(lc, counts{1: 200, 50: 1, 100: 10, 500: 5})
+	expect(other, counts{1: 2, 50: 1, 100: 10, 500: 5})
+
+	lc.Reset()
+	expect(lc, counts{})
+	lc.CopyFrom(&other)
+	expect(lc, counts{1: 2, 50: 1, 100: 10, 500: 5})
 }

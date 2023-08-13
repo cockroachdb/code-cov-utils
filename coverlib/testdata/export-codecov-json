@@ -1,0 +1,104 @@
+export-codecov-json
+----
+{
+  "coverage": {}
+}
+
+set file1.go
+----
+file1.go
+
+export-codecov-json
+----
+{
+  "coverage": {
+    "file1.go": {}
+  }
+}
+
+set file1.go
+1 0
+2 10
+3 1
+----
+file1.go
+  1:0
+  2:10
+  3:1
+
+export-codecov-json
+----
+{
+  "coverage": {
+    "file1.go": {
+      "1": 0,
+      "2": 10,
+      "3": 1
+    }
+  }
+}
+
+set file2.go
+----
+file1.go
+  1:0
+  2:10
+  3:1
+file2.go
+
+export-codecov-json
+----
+{
+  "coverage": {
+    "file1.go": {
+      "1": 0,
+      "2": 10,
+      "3": 1
+    },
+    "file2.go": {}
+  }
+}
+
+set file1.go
+4 4
+5 5
+----
+file1.go
+  1:0
+  2:10
+  3:1
+  4:4
+  5:5
+file2.go
+
+set file2.go
+10 10
+11 0
+----
+file1.go
+  1:0
+  2:10
+  3:1
+  4:4
+  5:5
+file2.go
+  10:10
+  11:0
+
+export-codecov-json
+----
+{
+  "coverage": {
+    "file1.go": {
+      "1": 0,
+      "2": 10,
+      "3": 1,
+      "4": 4,
+      "5": 5
+    },
+    "file2.go": {
+      "10": 10,
+      "11": 0
+    }
+  }
+}

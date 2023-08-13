@@ -17,7 +17,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"strings"
 	"testing"
 
 	"github.com/cockroachdb/datadriven"
@@ -37,20 +37,8 @@ func TestLcovToJson(t *testing.T) {
 				}
 			}
 
-			f, err := os.CreateTemp("", "profile")
-			if err != nil {
-				td.Fatalf(t, "%v", err)
-			}
-			filename := f.Name()
-			if _, err := f.WriteString(td.Input); err != nil {
-				td.Fatalf(t, "%v", err)
-			}
-			if err := f.Close(); err != nil {
-				td.Fatalf(t, "%v", err)
-			}
-
 			out := &bytes.Buffer{}
-			if err := convertGocoverToJson(filename, out, trimPrefix); err != nil {
+			if err := convertGoCoverToJson(strings.NewReader(td.Input), out, trimPrefix); err != nil {
 				return fmt.Sprintf("error: %v", err)
 			}
 			result := out.String()

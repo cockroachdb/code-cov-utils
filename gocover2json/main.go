@@ -15,15 +15,12 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
+	"github.com/cockroachdb/code-cov-utils/coverlib"
 	"io"
 	"os"
 	"strings"
-
-	"github.com/cockroachdb/code-cov-utils/coverlib"
-	"golang.org/x/tools/cover"
 )
 
 // gocover2json is a program that converts from go cover profile format to the
@@ -59,13 +56,18 @@ func main() {
 	}
 
 	gocoverFile := flag.Arg(0)
+	in, err := os.Open(gocoverFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening %q: %v", gocoverFile, err)
+		os.Exit(2)
+	}
 	jsonFile := flag.Arg(1)
 	out, err := os.Create(jsonFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating %q: %v\n", jsonFile, err)
 		os.Exit(2)
 	}
-	if err := convertGocoverToJson(gocoverFile, out, trimPrefix); err != nil {
+	if err := convertGoCoverToJson(in, out, trimPrefix); err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting %q: %v\n", gocoverFile, err)
 		os.Exit(2)
 	}
@@ -75,42 +77,13 @@ func main() {
 	}
 }
 
-func convertGocoverToJson(gocoverFile string, jsonWriter io.Writer, trimPrefix string) error {
-	profiles, err := cover.ParseProfiles(gocoverFile)
+func convertGoCoverToJson(goCoverReader io.Reader, jsonWriter io.Writer, trimPrefix string) error {
+	p, err := coverlib.ImportGoCover(goCoverReader)
 	if err != nil {
 		return err
 	}
-	// The output schema is odd, in that each line is a separate attribute
-	// (instead of being part of an array). This makes it hard to use Go's json
-	// machinery; we just produce the output directly.
-	w := bufio.NewWriter(jsonWriter)
-	w.WriteString("{\n")
-	w.WriteString("  \"coverage\": {")
-	for fileIdx, profile := range profiles {
-		var lineCounts coverlib.LineCounts
-		for _, b := range profile.Blocks {
-			for i := b.StartLine; i <= b.EndLine; i++ {
-				lineCounts.Set(i, b.Count)
-			}
-		}
-		if fileIdx > 0 {
-			w.WriteString(",")
-		}
-		w.WriteString("\n")
-		fileName := strings.TrimPrefix(profile.FileName, trimPrefix)
-		fmt.Fprintf(w, "    %q: {", fileName)
-		first := true
-		lineCounts.ForEach(func(lineIdx, hitCount int) {
-			if !first {
-				w.WriteString(",")
-			}
-			first = false
-			w.WriteString("\n")
-			fmt.Fprintf(w, "      \"%d\": %d", lineIdx, hitCount)
-		})
-		w.WriteString("\n    }")
-	}
-	w.WriteString("\n  }\n")
-	w.WriteString("}\n")
-	return w.Flush()
+	p.RenameFiles(func(filenameBefore string) string {
+		return strings.TrimPrefix(filenameBefore, trimPrefix)
+	})
+	return coverlib.ExportCodecovJson(p, jsonWriter)
 }
