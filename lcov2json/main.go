@@ -1,22 +1,24 @@
 // Copyright 2023 The Cockroach Authors.
 //
-// Use of this software is governed by the Business Source License
-// included in the file licenses/BSL.txt.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// As of the Change Date specified in that file, in accordance with
-// the Business Source License, use of this software will be governed
-// by the Apache License, Version 2.0, included in the file
-// licenses/APL.txt.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied. See the License for the specific language governing
+// permissions and limitations under the License.
 
 package main
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
+	"github.com/cockroachdb/code-cov-utils/coverlib"
 	"io"
 	"os"
-	"strings"
 )
 
 // lcov2json is a program that converts from LCOV format [1] to the Codecov
@@ -63,88 +65,10 @@ func main() {
 	}
 }
 
-// lineCount is the hit count for a line, or -1 if the line has no count.
-type lineCount int
-
-const noCount lineCount = -1
-
 func convertLcovToJson(lcovReader io.Reader, jsonWriter io.Writer) error {
-	lcov := bufio.NewScanner(lcovReader)
-
-	// The output schema is odd, in that each line is a separate attribute
-	// (instead of being part of an array). This makes it hard to use Go's json
-	// machinery; we just produce the output directly.
-	w := bufio.NewWriter(jsonWriter)
-	w.WriteString("{\n")
-	w.WriteString("  \"coverage\": {")
-	firstFile := true
-	var currentFile string
-	var currentLines []lineCount
-	for lcov.Scan() {
-		l := lcov.Text()
-		if l == "end_of_record" {
-			if currentFile == "" {
-				return errors.New("end_of_record with no file path")
-			}
-			if !firstFile {
-				w.WriteString(",")
-			}
-			firstFile = false
-			w.WriteString("\n")
-			fmt.Fprintf(w, "    %q: {", currentFile)
-			first := true
-			for i, count := range currentLines {
-				if count < 0 {
-					continue
-				}
-				if !first {
-					w.WriteString(",")
-				}
-				first = false
-				w.WriteString("\n")
-				fmt.Fprintf(w, "      \"%d\": %d", i, count)
-			}
-			w.WriteString("\n    }")
-
-			currentFile = ""
-			continue
-		}
-		idx := strings.Index(l, ":")
-		if idx == -1 {
-			// Don't know how to parse this line; skip.
-			fmt.Fprintf(os.Stderr, "Warning: cannot parse %q\n", l)
-			continue
-		}
-		key := l[:idx]
-		val := l[idx+1:]
-		switch key {
-		case "SF":
-			currentFile = val
-			currentLines = currentLines[:0]
-		case "DA":
-			var line, count int
-			_, err := fmt.Sscanf(val, "%d,%d", &line, &count)
-			if err != nil {
-				return fmt.Errorf("error parsing DA line: %v", err)
-			}
-			// Sanity check
-			if line > 1000000 {
-				break
-			}
-			// Extend the slice up to currentLines[line], if necessary.
-			for len(currentLines) <= line {
-				currentLines = append(currentLines, -1)
-			}
-			currentLines[line] = lineCount(count)
-		}
-	}
-	w.WriteString("\n  }\n")
-	w.WriteString("}\n")
-	if currentFile != "" {
-		return errors.New("unfinished record")
-	}
-	if err := lcov.Err(); err != nil {
+	p, err := coverlib.ImportLCOV(lcovReader)
+	if err != nil {
 		return err
 	}
-	return w.Flush()
+	return coverlib.ExportCodecovJson(p, jsonWriter)
 }

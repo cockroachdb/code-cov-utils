@@ -1,20 +1,23 @@
 // Copyright 2023 The Cockroach Authors.
 //
-// Use of this software is governed by the Business Source License
-// included in the file licenses/BSL.txt.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// As of the Change Date specified in that file, in accordance with
-// the Business Source License, use of this software will be governed
-// by the Apache License, Version 2.0, included in the file
-// licenses/APL.txt.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied. See the License for the specific language governing
+// permissions and limitations under the License.
 
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"golang.org/x/tools/cover"
+	"github.com/cockroachdb/code-cov-utils/coverlib"
 	"io"
 	"os"
 	"strings"
@@ -53,13 +56,18 @@ func main() {
 	}
 
 	gocoverFile := flag.Arg(0)
+	in, err := os.Open(gocoverFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening %q: %v", gocoverFile, err)
+		os.Exit(2)
+	}
 	jsonFile := flag.Arg(1)
 	out, err := os.Create(jsonFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating %q: %v\n", jsonFile, err)
 		os.Exit(2)
 	}
-	if err := convertGocoverToJson(gocoverFile, out, trimPrefix); err != nil {
+	if err := convertGoCoverToJson(in, out, trimPrefix); err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting %q: %v\n", gocoverFile, err)
 		os.Exit(2)
 	}
@@ -69,54 +77,13 @@ func main() {
 	}
 }
 
-// lineCount is the hit count for a line, or -1 if the line has no count.
-type lineCount int
-
-const noCount lineCount = -1
-
-func convertGocoverToJson(gocoverFile string, jsonWriter io.Writer, trimPrefix string) error {
-	profiles, err := cover.ParseProfiles(gocoverFile)
+func convertGoCoverToJson(goCoverReader io.Reader, jsonWriter io.Writer, trimPrefix string) error {
+	p, err := coverlib.ImportGoCover(goCoverReader)
 	if err != nil {
 		return err
 	}
-	// The output schema is odd, in that each line is a separate attribute
-	// (instead of being part of an array). This makes it hard to use Go's json
-	// machinery; we just produce the output directly.
-	w := bufio.NewWriter(jsonWriter)
-	w.WriteString("{\n")
-	w.WriteString("  \"coverage\": {")
-	for fileIdx, profile := range profiles {
-		var lineCounts []lineCount
-		for _, b := range profile.Blocks {
-			// Extend the slice up to lineCounts[b.EndLine], if necessary.
-			for len(lineCounts) <= b.EndLine {
-				lineCounts = append(lineCounts, -1)
-			}
-			for i := b.StartLine; i <= b.EndLine; i++ {
-				lineCounts[i] = lineCount(b.Count)
-			}
-		}
-		if fileIdx > 0 {
-			w.WriteString(",")
-		}
-		w.WriteString("\n")
-		fileName := strings.TrimPrefix(profile.FileName, trimPrefix)
-		fmt.Fprintf(w, "    %q: {", fileName)
-		first := true
-		for i, count := range lineCounts {
-			if count < 0 {
-				continue
-			}
-			if !first {
-				w.WriteString(",")
-			}
-			first = false
-			w.WriteString("\n")
-			fmt.Fprintf(w, "      \"%d\": %d", i, count)
-		}
-		w.WriteString("\n    }")
-	}
-	w.WriteString("\n  }\n")
-	w.WriteString("}\n")
-	return w.Flush()
+	p.RenameFiles(func(filenameBefore string) string {
+		return strings.TrimPrefix(filenameBefore, trimPrefix)
+	})
+	return coverlib.ExportCodecovJson(p, jsonWriter)
 }

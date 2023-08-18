@@ -12,32 +12,28 @@
 // implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
-package main
+package coverlib
 
 import (
-	"bytes"
-	"fmt"
-	"strings"
-	"testing"
+	"io"
 
-	"github.com/cockroachdb/datadriven"
+	"golang.org/x/tools/cover"
 )
 
-func TestLcovToJson(t *testing.T) {
-	datadriven.RunTest(t, "testdata/lcov2json", func(t *testing.T, td *datadriven.TestData) string {
-		switch td.Cmd {
-		case "convert":
-			in := strings.NewReader(td.Input)
-			out := &bytes.Buffer{}
-			if err := convertLcovToJson(in, out); err != nil {
-				return fmt.Sprintf("error: %v", err)
+// ImportGoCover imports go cover profile data.
+func ImportGoCover(reader io.Reader) (*Profiles, error) {
+	profiles, err := cover.ParseProfilesFromReader(reader)
+	if err != nil {
+		return nil, err
+	}
+	p := &Profiles{}
+	for _, profile := range profiles {
+		lineCounts := p.LineCounts(profile.FileName)
+		for _, b := range profile.Blocks {
+			for i := b.StartLine; i <= b.EndLine; i++ {
+				lineCounts.Set(i, b.Count)
 			}
-			result := out.String()
-			return result
-
-		default:
-			td.Fatalf(t, "unknown command %s", td.Cmd)
-			return ""
 		}
-	})
+	}
+	return p, nil
 }
