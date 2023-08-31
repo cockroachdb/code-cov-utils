@@ -40,7 +40,7 @@ func FormatFromFilename(filename string) (Format, error) {
 	case strings.HasSuffix(filename, ".json"):
 		return FormatCodecovJSON, nil
 	default:
-		return 0, fmt.Errorf("could not determine format from filename %q", filename)
+		return 0, fmt.Errorf("could not determine format for filename %q; supported extensions are .out, .lcov, .json", filename)
 	}
 }
 

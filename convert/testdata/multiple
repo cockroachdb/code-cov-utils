@@ -1,0 +1,88 @@
+input fmt=gocov
+mode: set
+github.com/cnuss/api_server/server.go:47.2,48.16 2 0
+github.com/cnuss/api_server/server.go:52.2,53.16 2 1
+github.com/cnuss/api_server/server.go:57.2,58.16 2 5
+github.com/cnuss/api_server/server.go:62.2,63.16 2 0
+github.com/cnuss/api_server/server.go:67.2,68.16 2 0
+----
+
+input fmt=lcov
+SF:github.com/cnuss/api_server/server.go
+DA:63,0
+DA:67,0
+DA:68,0
+DA:72,3
+DA:73,3
+DA:77,0
+DA:78,0
+LH:6
+LF:14
+end_of_record
+SF:github.com/cnuss/api_server/main.go
+DA:10,1
+DA:11,1
+DA:12,0
+DA:13,1
+LH:3
+LH:4
+end_of_record
+----
+
+convert fmt=lcov
+----
+SF:github.com/cnuss/api_server/main.go
+DA:10,1
+DA:11,1
+DA:12,0
+DA:13,1
+LH:3
+LF:4
+end_of_record
+SF:github.com/cnuss/api_server/server.go
+DA:47,0
+DA:48,0
+DA:52,1
+DA:53,1
+DA:57,5
+DA:58,5
+DA:62,0
+DA:63,0
+DA:67,0
+DA:68,0
+DA:72,3
+DA:73,3
+DA:77,0
+DA:78,0
+LH:6
+LF:14
+end_of_record
+
+convert fmt=json trim-prefix=github.com/cnuss/
+----
+{
+  "coverage": {
+    "api_server/main.go": {
+      "10": 1,
+      "11": 1,
+      "12": 0,
+      "13": 1
+    },
+    "api_server/server.go": {
+      "47": 0,
+      "48": 0,
+      "52": 1,
+      "53": 1,
+      "57": 5,
+      "58": 5,
+      "62": 0,
+      "63": 0,
+      "67": 0,
+      "68": 0,
+      "72": 3,
+      "73": 3,
+      "77": 0,
+      "78": 0
+    }
+  }
+}
