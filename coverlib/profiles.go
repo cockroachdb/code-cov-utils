@@ -51,11 +51,14 @@ func (p *Profiles) Files() []string {
 
 // RenameFiles changes the names of the files in the profile.
 func (p *Profiles) RenameFiles(renameFn func(filenameBefore string) string) {
-	m := make(map[string]*LineCounts, len(p.m))
-	for f, lc := range p.m {
-		m[renameFn(f)] = lc
+	oldMap := p.m
+	p.m = make(map[string]*LineCounts, len(p.m))
+	for f, lc := range oldMap {
+		// If a file with this name already exists, we merge the profiles. This
+		// could happen if we are merging data from different profiles and some have
+		// a different prefix.
+		p.LineCounts(renameFn(f)).MergeWith(lc)
 	}
-	p.m = m
 }
 
 func (p *Profiles) String() string {
@@ -67,4 +70,14 @@ func (p *Profiles) String() string {
 		}
 	}
 	return buf.String()
+}
+
+// MergeWith merges in the given profiles.
+//
+// For any given line, the resulting hit count is the sum between the hit counts
+// in the two profiles.
+func (p *Profiles) MergeWith(other *Profiles) {
+	for _, filename := range other.Files() {
+		p.LineCounts(filename).MergeWith(other.LineCounts(filename))
+	}
 }

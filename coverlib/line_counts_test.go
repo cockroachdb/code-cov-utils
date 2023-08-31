@@ -32,14 +32,19 @@ func TestLineCounts(t *testing.T) {
 		}
 		sort.Ints(expLines)
 		var gotLines []int
+		var gotHitCounts []int
+
 		lc.ForEach(func(lineIdx, hitCount int) {
 			gotLines = append(gotLines, lineIdx)
-			if hitCount != m[lineIdx] {
-				t.Fatalf("invalid hit count for %d: expected %d, got %d", lineIdx, m[lineIdx], hitCount)
-			}
+			gotHitCounts = append(gotHitCounts, hitCount)
 		})
 		if !reflect.DeepEqual(expLines, gotLines) {
 			t.Fatalf("invalid line set.\nexpected: %v\ngot: %v", expLines, gotLines)
+		}
+		for i, lineIdx := range gotLines {
+			if hitCount := gotHitCounts[i]; hitCount != m[lineIdx] {
+				t.Fatalf("invalid hit count for %d: expected %d, got %d", lineIdx, m[lineIdx], hitCount)
+			}
 		}
 	}
 	expect(lc, counts{})
@@ -67,4 +72,11 @@ func TestLineCounts(t *testing.T) {
 	expect(lc, counts{})
 	lc.CopyFrom(&other)
 	expect(lc, counts{1: 2, 50: 1, 100: 10, 500: 5})
+
+	other.Reset()
+	other.Set(1, 0)
+	other.Set(50, 50)
+	other.Set(1000, 1)
+	lc.MergeWith(&other)
+	expect(lc, counts{1: 2, 50: 51, 100: 10, 500: 5, 1000: 1})
 }

@@ -29,15 +29,19 @@ type LineCounts struct {
 // Set the hit count for a line. If the line already has a hit count, the larger
 // value is used.
 func (lc *LineCounts) Set(lineIdx, hitCount int) {
-	// Safety guard in case of corrupt data.
-	if lineIdx > 10000000 {
-		panic(fmt.Sprintf("lineIdx too large: %d", lineIdx))
-	}
-	for lineIdx >= len(lc.hitCounts) {
-		lc.hitCounts = append(lc.hitCounts, noCount)
-	}
+	lc.ensureSize(lineIdx + 1)
 	if lc.hitCounts[lineIdx] < hitCount {
 		lc.hitCounts[lineIdx] = hitCount
+	}
+}
+
+func (lc *LineCounts) ensureSize(n int) {
+	// Safety guard in case of corrupt data.
+	if n > 10000000 {
+		panic(fmt.Sprintf("desired size too large: %d", n))
+	}
+	for len(lc.hitCounts) < n {
+		lc.hitCounts = append(lc.hitCounts, noCount)
 	}
 }
 
@@ -61,10 +65,26 @@ func (lc *LineCounts) CopyFrom(other *LineCounts) {
 	lc.hitCounts = append(lc.hitCounts[:0], other.hitCounts...)
 }
 
+// MergeWith merges in the given line counts.
+//
+// For any given line, the resulting hit count is the sum between the two hit
+// counts.
+func (lc *LineCounts) MergeWith(other *LineCounts) {
+	lc.ensureSize(len(other.hitCounts))
+	other.ForEach(func(lineIdx, hitCount int) {
+		if lc.hitCounts[lineIdx] == noCount {
+			lc.hitCounts[lineIdx] = 0
+		}
+		lc.hitCounts[lineIdx] += hitCount
+	})
+}
+
 func (lc *LineCounts) String() string {
 	return lc.StringWithSeparator(", ")
 }
 
+// StringWithSeparator generates a string representation showing groups of lines
+// with the same hit count, separated by the given separator.
 func (lc *LineCounts) StringWithSeparator(sep string) string {
 	// We will RLE compress the counts and emit each "block" as a string.
 	var lastStart, lastEnd, lastCount int
