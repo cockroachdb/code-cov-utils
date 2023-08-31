@@ -1,4 +1,4 @@
-import-go-cover
+import fmt=gocov
 mode: set
 github.com/cnuss/api_server/server.go:47.2,48.16 2 0
 github.com/cnuss/api_server/server.go:52.2,53.16 2 1
@@ -17,7 +17,7 @@ github.com/cnuss/api_server/server.go
   72-73:3
   77-78:0
 
-import-go-cover
+import fmt=gocov
 mode: set
 github.com/cockroachdb/pebble/objstorage/objstorageprovider/remote.go:46.39,47.39 1 1
 github.com/cockroachdb/pebble/objstorage/objstorageprovider/remote.go:50.2,51.16 2 1

@@ -1,0 +1,52 @@
+import fmt=lcov merge
+SF:/pkg/foo.go
+DA:3,1
+DA:4,0
+DA:5,1
+end_of_record
+SF:/pkg/bar.go
+end_of_record
+----
+/pkg/bar.go
+/pkg/foo.go
+  3:1
+  4:0
+  5:1
+
+import fmt=lcov merge
+SF:/pkg/foo.go
+DA:4,5
+DA:5,2
+DA:9,2
+end_of_record
+SF:/pkg/bar.go
+DA:1,5
+end_of_record
+----
+/pkg/bar.go
+  1:5
+/pkg/foo.go
+  3:1
+  4:5
+  5:3
+  9:2
+
+import fmt=lcov merge
+SF:/pkg/foo.go
+DA:9,0
+end_of_record
+SF:/pkg/baz.go
+DA:10,1
+DA:11,0
+end_of_record
+----
+/pkg/bar.go
+  1:5
+/pkg/baz.go
+  10:1
+  11:0
+/pkg/foo.go
+  3:1
+  4:5
+  5:3
+  9:2
