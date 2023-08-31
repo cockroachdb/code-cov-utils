@@ -44,27 +44,35 @@ func TestCoverlib(t *testing.T) {
 				}
 				return p.String()
 
-			case "export-codecov-json":
+			case "export":
+				var formatStr string
+				td.ScanArgs(t, "fmt", &formatStr)
+				format, err := FormatFromFilename("some-name." + formatStr)
+				if err != nil {
+					td.Fatalf(t, "%v", err)
+				}
 				var buf bytes.Buffer
-				if err := ExportCodecovJson(&p, &buf); err != nil {
+				if err := Export(&p, format, &buf); err != nil {
 					td.Fatalf(t, "%v", err)
 				}
 				return buf.String()
 
-			case "import-go-cover":
-				res, err := ImportGoCover(strings.NewReader(td.Input))
+			case "import":
+				var formatStr string
+				td.ScanArgs(t, "fmt", &formatStr)
+				format, err := FormatFromFilename("some-name." + formatStr)
 				if err != nil {
 					td.Fatalf(t, "%v", err)
 				}
-				p = *res
-				return p.String()
-
-			case "import-lcov":
-				res, err := ImportLCOV(strings.NewReader(td.Input))
+				res, err := Import(format, strings.NewReader(td.Input))
 				if err != nil {
 					td.Fatalf(t, "%v", err)
 				}
-				p = *res
+				if td.HasArg("merge") {
+					p.MergeWith(res)
+				} else {
+					p = *res
+				}
 				return p.String()
 
 			default:

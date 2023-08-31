@@ -1,4 +1,4 @@
-import-lcov
+import fmt=lcov
 TN:
 SF:/src/workspace/mypackage/test.c
 FN:3,main
@@ -39,7 +39,7 @@ end_of_record
   7:0
   9:0
 
-import-lcov
+import fmt=lcov
 SF:/pkg/foo.go
 DA:3,1
 DA:4,0
