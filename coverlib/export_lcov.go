@@ -53,3 +53,30 @@ func ExportLCOV(p *Profiles, writer io.Writer) error {
 	}
 	return err
 }
+
+type writer struct {
+	w   *bufio.Writer
+	err error
+}
+
+func newWriter(w io.Writer) *writer {
+	return &writer{
+		w: bufio.NewWriter(w),
+	}
+}
+
+func (w *writer) Emit(s string) {
+	if w.err != nil {
+		return
+	}
+	if _, err := w.w.WriteString(s); err != nil {
+		w.err = err
+	}
+}
+
+func (w *writer) Finish() error {
+	if w.err != nil {
+		return w.err
+	}
+	return w.w.Flush()
+}
